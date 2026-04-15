@@ -1,0 +1,12 @@
+# React
+frontend/node_modules
+frontend/.expo
+
+# Spring Boot
+backend/target
+*.log
+*.class
+
+# Common
+.env
+.idea
