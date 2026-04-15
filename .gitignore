@@ -10,3 +10,6 @@ backend/target
 # Common
 .env
 .idea
+
+
+openai.api.key=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
