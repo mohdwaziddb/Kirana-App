@@ -19,10 +19,7 @@ public class ImageProcessingService {
     public List<ItemResponse> processImage(MultipartFile file) {
 
         try {
-            File tempFile = File.createTempFile("upload", ".png");
-            file.transferTo(tempFile);
-
-            String extractedText = ocrService.extractTextFromImage(tempFile);
+            String extractedText = ocrService.extractText(file);
 
             System.out.println("OCR TEXT: " + extractedText);
 

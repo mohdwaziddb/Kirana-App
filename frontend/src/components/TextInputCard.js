@@ -1,30 +1,17 @@
-import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
 
 export default function TextInputCard({ input, setInput, onProcess }) {
-  return (
-    <View
-      style={{
-        backgroundColor: "white",
-        padding: 15,
-        borderRadius: 10,
-        marginBottom: 15,
-        elevation: 2
-      }}
-    >
-      {/* Title */}
-      <Text style={{ fontWeight: "bold", fontSize: 16 }}>
-        Enter Items
-      </Text>
 
-      {/* Input */}
+  return (
+    <View style={{
+      backgroundColor: "white",
+      padding: 15,
+      borderRadius: 10
+    }}>
+
+      <Text style={{ fontWeight: "bold" }}>Enter Items</Text>
+
       <TextInput
-        placeholder="e.g. chana dal 2kg, rice 5kg"
         value={input}
         onChangeText={setInput}
         multiline
@@ -34,12 +21,10 @@ export default function TextInputCard({ input, setInput, onProcess }) {
           marginTop: 10,
           padding: 10,
           borderRadius: 8,
-          height: 80,
-          textAlignVertical: "top"
+          height: 80
         }}
       />
 
-      {/* Button */}
       <TouchableOpacity
         onPress={onProcess}
         style={{
@@ -54,6 +39,7 @@ export default function TextInputCard({ input, setInput, onProcess }) {
           PROCESS
         </Text>
       </TouchableOpacity>
+
     </View>
   );
 }

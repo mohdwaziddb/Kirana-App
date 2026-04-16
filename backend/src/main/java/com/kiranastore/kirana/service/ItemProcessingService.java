@@ -16,80 +16,148 @@ public class ItemProcessingService {
         this.matchingService = matchingService;
     }
 
+    // ================= MAIN ENTRY =================
     public List<ItemResponse> processText(String inputText) {
 
-        try {
-            // 🔥 Step 1: Normalize input
-            inputText = inputText
-                    .replace(",", "\n")
-                    .replace(";", "\n")
-                    .replace("-", " ")
-                    .replace("=", " ")
-                    .replaceAll("\\s+", " ");
+        List<ItemRequest> items = manualParse(inputText);
+        return matchingService.matchItems(items);
+    }
 
-            String[] lines = inputText.split("\\n");
+    // ================= OCR ENTRY =================
+    public List<ItemRequest> processOCRText(String ocrText) {
 
-            List<ItemRequest> items = new ArrayList<>();
+        ocrText = cleanOCRText(ocrText);
 
-            // 🔥 Step 2: Parse manually
-            for (String line : lines) {
+        List<String> lines = extractLines(ocrText);
 
-                line = line.trim();
-                if (line.isEmpty()) continue;
+        List<ItemRequest> items = new ArrayList<>();
 
-                String[] parts = line.split("\\s+");
+        for (String line : lines) {
 
-                String name = "";
-                String quantity = "1";
+            line = line.replaceAll("[()]", ""); // remove brackets
 
-                StringBuilder nameBuilder = new StringBuilder();
+            items.addAll(manualParse(line));
+        }
 
-                for (int i = 0; i < parts.length; i++) {
+        return items;
+    }
 
-                    String word = parts[i];
+    // ================= CLEAN OCR =================
+    private String cleanOCRText(String text) {
 
-                    // 🔥 check if number exists
-                    if (word.matches(".*\\d.*")) {
+        return text
+                .replaceAll("[^a-zA-Z0-9\\u0900-\\u097F\\s()]", " ")
+                .replaceAll("\\d+\\)", "") // remove 1)
+                .replaceAll("->", " ")
+                .replaceAll("\\s+", " ")
+                .toLowerCase();
+    }
 
-                        quantity = word;
+    // ================= EXTRACT LINES =================
+    private List<String> extractLines(String text) {
 
-                        // handle "2 kg"
-                        if (i + 1 < parts.length && parts[i + 1].matches("[a-zA-Z]+")) {
-                            quantity = word + parts[i + 1];
-                            i++; // skip next word
-                        }
+        String[] rawLines = text.split("\\n");
+        List<String> lines = new ArrayList<>();
 
-                    } else {
-                        nameBuilder.append(word).append(" ");
-                    }
+        for (String line : rawLines) {
+
+            line = line.trim();
+
+            if (line.length() < 2) continue;
+
+            // remove starting number
+            line = line.replaceAll("^\\d+\\s*", "");
+
+            lines.add(line);
+        }
+
+        return lines;
+    }
+
+    // ================= SMART PARSER =================
+    private static final List<String> UNITS =
+            List.of("kg", "g", "gm", "ltr", "l", "ml", "pcs");
+
+    private List<ItemRequest> manualParse(String inputText) {
+
+        inputText = inputText.toLowerCase().trim();
+
+        inputText = inputText
+                .replace(",", " ")
+                .replace(";", " ")
+                .replace("-", " ")
+                .replaceAll("\\s+", " ");
+
+        String[] words = inputText.split(" ");
+
+        List<ItemRequest> items = new ArrayList<>();
+
+        StringBuilder nameBuilder = new StringBuilder();
+        String pendingQuantity = null;
+
+        for (int i = 0; i < words.length; i++) {
+
+            String word = words[i];
+
+            // 🔥 detect number
+            if (word.matches("\\d+(\\.\\d+)?[a-zA-Z]*")) {
+
+                String quantity = word;
+
+                // ✅ attach only valid units
+                if (i + 1 < words.length && UNITS.contains(words[i + 1])) {
+                    quantity += words[i + 1];
+                    i++;
                 }
 
-                name = nameBuilder.toString().trim().toLowerCase();
+                if (nameBuilder.length() == 0) {
+                    pendingQuantity = quantity;
+                } else {
 
-                ItemRequest item = new ItemRequest();
-                item.setName(name);
-                item.setQuantity(quantity);
+                    ItemRequest item = new ItemRequest();
+                    item.setName(nameBuilder.toString().trim());
+                    item.setQuantity(quantity);
 
-                items.add(item);
+                    items.add(item);
+
+                    nameBuilder.setLength(0);
+                }
+
+            } else {
+
+                if (pendingQuantity != null) {
+
+                    nameBuilder.append(word).append(" ");
+
+                    if (i == words.length - 1 ||
+                            words[i + 1].matches("\\d+(\\.\\d+)?[a-zA-Z]*")) {
+
+                        ItemRequest item = new ItemRequest();
+                        item.setName(nameBuilder.toString().trim());
+                        item.setQuantity(pendingQuantity);
+
+                        items.add(item);
+
+                        nameBuilder.setLength(0);
+                        pendingQuantity = null;
+                    }
+
+                } else {
+                    nameBuilder.append(word).append(" ");
+                }
             }
-
-            // 🔥 Step 3: Matching + pricing (same as before)
-            return matchingService.matchItems(items);
-
-        } catch (Exception e) {
-
-            List<ItemResponse> errorList = new ArrayList<>();
-
-            ItemResponse error = new ItemResponse();
-            error.setName("Error parsing items");
-            error.setQuantity("-");
-            error.setPrice(null);
-            error.setTotal(null);
-            error.setMatched(false);
-
-            errorList.add(error);
-
-            return errorList;
         }
+
+        // fallback
+        if (nameBuilder.length() > 0) {
+
+            ItemRequest item = new ItemRequest();
+            item.setName(nameBuilder.toString().trim());
+            item.setQuantity("1");
+
+            items.add(item);
+        }
+
+        return items;
     }
 }
